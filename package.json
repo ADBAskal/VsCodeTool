@@ -1,0 +1,105 @@
+{
+  "name": "dayz-mod-tool",
+  "displayName": "DayZ Mod Tools for PboProject",
+  "description": "Automated PBO generation and mod management for DayZ via VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:dayzModList"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dayz-mod-tool.buildMod",
+        "title": "Build Mod PBO",
+        "category": "DayZ"
+      },
+      {
+        "command": "dayz-mod-tool.refreshMods",
+        "title": "Refresh Mod List",
+        "icon": "$(refresh)"
+      }
+    ],
+    "configuration": {
+      "title": "DayZ Mod Tools",
+      "properties": {
+        "dayzTool.sourcePath": {
+          "type": "string",
+          "default": "P:/",
+          "description": "Root path for mod sources (Work Drive). Must be P:/ or a mapped drive acting as the project root."
+        },
+        "dayzTool.outputPath": {
+          "type": "string",
+          "default": "",
+          "description": "Output path for PboProject. If empty, defaults to PboProject's standard behavior (usually creating an @ModName folder in P:/)."
+        },
+        "dayzTool.keyPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the private key (.biprivatekey) for signing."
+        },
+        "dayzTool.dayzServerPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DayZServer",
+          "description": "Path to DayZ Server directory (for logs and testing reference)."
+        },
+        "dayzTool.dayzClientPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DayZ",
+          "description": "Path to DayZ Client directory."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dayz-mod-explorer",
+          "title": "DayZ Mods",
+          "icon": "$(archive)"
+        }
+      ]
+    },
+    "views": {
+      "dayz-mod-explorer": [
+        {
+          "id": "dayzModList",
+          "name": "Workspace Mods",
+          "icon": "$(package)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "dayz-mod-tool.refreshMods",
+          "when": "view == dayzModList",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dayz-mod-tool.buildMod",
+          "when": "view == dayzModList && viewItem == modItem",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.96.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
