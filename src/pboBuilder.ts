@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs';
 import { ConfigManager } from './configManager';
 
 export class PboBuilder {
@@ -13,78 +14,180 @@ export class PboBuilder {
     }
 
     public async buildMod(modPath: string) {
+        this.outputChannel.show(true);
+        this.outputChannel.appendLine(`Initializing Build for: ${modPath}`);
+
         const pboProjectExe = await this.configManager.getPboProjectPath();
         if (!pboProjectExe) {
-            vscode.window.showErrorMessage('PboProject.exe path not found. Please install Mikero Tools or configure the path in Registry.');
+            this.outputChannel.appendLine(`[ERROR] PboProject.exe not found in Registry or Common Paths.`);
+            vscode.window.showErrorMessage('PboProject.exe path not found. Please install Mikero Tools.');
             return;
         }
 
         const config = this.configManager.getConfig();
-        const modName = path.basename(modPath);
 
-        // Validation: Verify if mod is physically inside the declared Source Path (usually P:/)
-        // This is a soft check, we warn if it looks wrong but proceed if the user really wants to.
-        const sourceRoot = this.configManager.ensureSourcePath(path.dirname(modPath));
-        if (!modPath.toLowerCase().startsWith(sourceRoot.toLowerCase())) {
-            // Just a debug warning, pboProject might handle it if drive mapping is correct
-            console.warn(`Mod path ${modPath} does not seem to be inside configured source root ${sourceRoot}`);
+        // 1. Determine PBO Name (Internal Name)
+        let pboName = await this.extractPboName(modPath);
+        if (!pboName) {
+            pboName = path.basename(modPath);
+            this.outputChannel.appendLine(`Using Folder Name for PBO: ${pboName}`);
+        } else {
+            this.outputChannel.appendLine(`Using CfgPatches for PBO: ${pboName}`);
         }
+        // Sanitize PBO Name
+        pboName = pboName.replace(/[<>:"/\\|?*]/g, '_');
 
-        let args: string[] = [];
+        // 2. Determine Mod Folder Name (Destination Folder, e.g. @MyMod)
+        let modFolderName = config.modFolderNameOverride;
+        if (!modFolderName || modFolderName.trim() === "") {
+            const wsFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(modPath));
+            if (wsFolder) {
+                modFolderName = wsFolder.name;
+                // Remove " (Workspace)" if present
+                modFolderName = modFolderName.replace(' (Workspace)', '').trim();
+            } else {
+                modFolderName = "DayZMod";
+            }
+        }
+        // Ensure @ prefix
+        if (!modFolderName.startsWith('@')) {
+            modFolderName = `@${modFolderName}`;
+        }
+        // Sanitize Mod Folder Name just in case
+        modFolderName = modFolderName.replace(/[<>:"/\\|?*]/g, '_');
 
-        // Command Structure for PboProject:
-        // pboProject.exe -P -K "KeyPath" "SourcePath" "DestinationPath"
 
-        // -P: Pause on error? Or just "Project" mode? 
-        // "Pipeline Via CLI" usually implies we want automation.
-        // Common mikero flags:
-        // -g: No Pause / No GUI (Batch mode)
-        // -P: Pause (we probably don't want this for automation, but let's stick to simple defaults first)
-        // Actually, Mikero's tools are quirky. 
-        // usually: pboProject.exe -K <key> <source> <output>
+        const args: string[] = [
+            // '-z', 
+            '-E=dayz',
+            '+H',
+            '-P',
+            `-L=${pboName}`
+        ];
 
-        // Key Path
+        /*
+        // Legacy Tool SIGNED separately using DSSignFile. 
+        // PboProject -K might be problematic or causing the hang/failure if key is wrong.
+        // Disabling -K to match legacy stability for now.
         if (config.keyPath && config.keyPath.trim() !== "") {
             args.push(`-K "${config.keyPath}"`);
         } else {
             vscode.window.showWarningMessage('No private key configured. Mod will not be signed.');
         }
+        */
 
-        // Source and Destination
-        const sourceArg = `"${path.normalize(modPath)}"`;
-
-        let destArg = "";
+        // Output destination
+        let finalOutput = "";
         if (config.outputPath && config.outputPath.trim() !== "") {
-            destArg = `"${path.normalize(config.outputPath)}"`;
+            finalOutput = path.join(path.normalize(config.outputPath), modFolderName);
+
+            // Ensure directory exists
+            if (!fs.existsSync(finalOutput)) {
+                try {
+                    fs.mkdirSync(finalOutput, { recursive: true });
+                    this.outputChannel.appendLine(`Created output directory: ${finalOutput}`);
+                } catch (e) {
+                    this.outputChannel.appendLine(`[ERROR] Failed to create output directory: ${e}`);
+                    vscode.window.showErrorMessage(`Failed to create output directory: ${finalOutput}`);
+                    return;
+                }
+            }
+            args.push(`-M="${finalOutput}"`);
         } else {
-            // If no output specified, PboProject usually defaults to P:/ or parent dir.
-            // We leave it empty to let PboProject decide.
+            // If no output path, PboProject defaults to P:\ModName typically?
+            // But we should warn or handle defaults.
+            // For now, let PboProject decide if no output path.
         }
 
-        const command = `"${pboProjectExe}" ${args.join(' ')} ${sourceArg} ${destArg}`;
+        const sourceArg = `"${path.normalize(modPath)}"`;
+        const command = `"${pboProjectExe}" ${args.join(' ')} ${sourceArg}`;
 
         this.outputChannel.show(true);
-        this.outputChannel.appendLine(`Starting Build for: ${modName}`);
-        this.outputChannel.appendLine(`Source: ${modPath}`);
-        this.outputChannel.appendLine(`Output: ${config.outputPath || "(Default)"}`);
+        this.outputChannel.appendLine(`Mod Folder: ${modFolderName}`);
+        this.outputChannel.appendLine(`PBO Name: ${pboName}`);
+        this.outputChannel.appendLine(`Output Path: ${finalOutput}`);
         this.outputChannel.appendLine(`Executing: ${command}`);
 
-        cp.exec(command, (error, stdout, stderr) => {
-            if (stdout) {
-                this.outputChannel.append(stdout);
-            }
-            if (stderr) {
-                this.outputChannel.append(stderr);
-            }
+        cp.exec(command, async (error, stdout, stderr) => {
+            if (stdout) this.outputChannel.append(stdout);
+            if (stderr) this.outputChannel.append(stderr);
 
             if (error) {
                 this.outputChannel.appendLine(`\n[ERROR] Build Process Exited with Error code: ${error.code}`);
                 this.outputChannel.appendLine(`Message: ${error.message}`);
-                vscode.window.showErrorMessage(`Build for ${modName} failed. Check output for details.`);
+                vscode.window.showErrorMessage(`Build for ${pboName} failed. Check output.`);
             } else {
                 this.outputChannel.appendLine(`\n[SUCCESS] Build completed.`);
-                vscode.window.showInformationMessage(`Build for ${modName} complete!`);
+
+                // --- SIGNING PROCESS ---
+                if (finalOutput && config.keyPath && config.keyPath.trim() !== "") {
+                    // PboProject with -M typically puts it in Output/@Mod/Addons/Name.pbo
+                    const pboFile = path.join(finalOutput, 'Addons', `${pboName}.pbo`);
+
+                    if (fs.existsSync(pboFile)) {
+                        this.outputChannel.appendLine(`Signing PBO: ${pboFile}`);
+                        const dsSign = this.configManager.getDsUtilsTool('DSSignFile.exe');
+                        if (dsSign) {
+                            // Sign it: DSSignFile.exe "key" "pbo"
+                            const signCmd = `"${dsSign}" "${config.keyPath}" "${pboFile}"`;
+                            this.outputChannel.appendLine(`Executing Sign: ${signCmd}`);
+
+                            cp.exec(signCmd, (sErr, sOut, sStdErr) => {
+                                if (sOut) this.outputChannel.append(sOut);
+                                if (sErr) {
+                                    this.outputChannel.appendLine(`[SIGN ERROR] ${sErr.message}`);
+                                } else {
+                                    this.outputChannel.appendLine(`[SIGNED] ${pboName}.pbo signed successfully.`);
+                                }
+                                vscode.window.showInformationMessage(`Build & Sign for ${pboName} complete!`);
+                            });
+                        } else {
+                            this.outputChannel.appendLine(`[WARNING] DSSignFile.exe not found. PBO not signed.`);
+                            vscode.window.showWarningMessage('Build complete, but DSSignFile.exe not found. PBO not signed.');
+                        }
+                    } else {
+                        this.outputChannel.appendLine(`[WARNING] Could not find built PBO at ${pboFile} to sign.`);
+                        vscode.window.showInformationMessage(`Build for ${pboName} complete (Unsigned - PBO not found)!`);
+                    }
+                } else {
+                    vscode.window.showInformationMessage(`Build for ${pboName} complete!`);
+                }
+                // Refresh the view to update "Needs Build" status
+                vscode.commands.executeCommand('dayz-mod-tool.refreshMods');
             }
         });
+    }
+
+    private async extractPboName(dirPath: string): Promise<string | null> {
+        try {
+            const cppPath = path.join(dirPath, 'config.cpp');
+            if (fs.existsSync(cppPath)) {
+                const content = await fs.promises.readFile(cppPath, 'utf8');
+                // Regex: class CfgPatches { class NAME
+                const match = content.match(/class\s+CfgPatches\s*\{[\s\S]*?class\s+([a-zA-Z0-9_]+)/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+            }
+        } catch (e) {
+            this.outputChannel.appendLine(`Error parsing config.cpp in ${dirPath}: ${e}`);
+        }
+        return null;
+    }
+
+    public async buildAll(mods: string[]) {
+        if (mods.length === 0) {
+            vscode.window.showInformationMessage("No mods to build.");
+            return;
+        }
+
+        this.outputChannel.show(true);
+        this.outputChannel.appendLine(`=== Starting Batch Build (${mods.length} mods) ===`);
+
+        for (const modPath of mods) {
+            await this.buildMod(modPath);
+        }
+
+        this.outputChannel.appendLine(`=== Batch Build Complete ===`);
     }
 }

@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "A:/Área de Trabalho/Askal_VSCode_Tool-main"
 		}
 	],
 	"settings": {}

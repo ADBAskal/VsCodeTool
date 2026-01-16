@@ -2,7 +2,7 @@
   "name": "dayz-mod-tool",
   "displayName": "DayZ Mod Tools for PboProject",
   "description": "Automated PBO generation and mod management for DayZ via VS Code",
-  "version": "0.0.1",
+  "version": "0.0.41",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -10,8 +10,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onView:dayzModList"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -19,12 +18,73 @@
       {
         "command": "dayz-mod-tool.buildMod",
         "title": "Build Mod PBO",
-        "category": "DayZ"
+        "category": "DayZ",
+        "icon": "$(tools)"
       },
       {
         "command": "dayz-mod-tool.refreshMods",
         "title": "Refresh Mod List",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "dayz-mod-tool.startServer",
+        "title": "Start Server",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dayz-mod-tool.stopServer",
+        "title": "Stop Server",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "dayz-mod-tool.restartServer",
+        "title": "Restart Server",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "dayz-mod-tool.startClient",
+        "title": "Start Client",
+        "icon": "$(run)"
+      },
+      {
+        "command": "dayz-mod-tool.killClient",
+        "title": "Kill Client",
+        "icon": "$(close)"
+      },
+      {
+        "command": "dayz-mod-tool.restartClient",
+        "title": "Restart Client",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "dayz-mod-tool.startAutoMode",
+        "title": "Launch Full Environment",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "dayz-mod-tool.stopAll",
+        "title": "Stop All",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "dayz-mod-tool.restartAll",
+        "title": "Restart All",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "dayz-mod-tool.openSettings",
+        "title": "Configuration",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "dayz-mod-tool.buildPending",
+        "title": "Build Pending",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "dayz-mod-tool.buildAll",
+        "title": "Build All",
+        "icon": "$(gear)"
       }
     ],
     "configuration": {
@@ -40,6 +100,21 @@
           "default": "",
           "description": "Output path for PboProject. If empty, defaults to PboProject's standard behavior (usually creating an @ModName folder in P:/)."
         },
+        "dayzTool.serverIP": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Server IP address for the client to connect to."
+        },
+        "dayzTool.serverPort": {
+          "type": "integer",
+          "default": 2302,
+          "description": "Server Port for the client to connect to."
+        },
+        "dayzTool.modFolderNameOverride": {
+          "type": "string",
+          "default": "",
+          "description": "Override the Mod Folder Name (e.g. @MySuperMod). If empty, uses Workspace Name or Folder Name."
+        },
         "dayzTool.keyPath": {
           "type": "string",
           "default": "",
@@ -54,6 +129,11 @@
           "type": "string",
           "default": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DayZ",
           "description": "Path to DayZ Client directory."
+        },
+        "dayzTool.workshopPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\221100",
+          "description": "Path to DayZ Workshop folder (usually .../steamapps/workshop/content/221100)."
         }
       }
     },
@@ -69,9 +149,9 @@
     "views": {
       "dayz-mod-explorer": [
         {
-          "id": "dayzModList",
-          "name": "Workspace Mods",
-          "icon": "$(package)"
+          "id": "dayzServerControl",
+          "name": "DayZ Control Center",
+          "icon": "$(layout-sidebar-left)"
         }
       ]
     },
@@ -79,14 +159,52 @@
       "view/title": [
         {
           "command": "dayz-mod-tool.refreshMods",
-          "when": "view == dayzModList",
+          "when": "view == dayzServerControl",
+          "group": "navigation"
+        },
+        {
+          "command": "dayz-mod-tool.startAutoMode",
+          "when": "view == dayzServerControl",
+          "group": "navigation",
+          "title": "Launch Full Environment"
+        },
+        {
+          "command": "dayz-mod-tool.restartAll",
+          "when": "view == dayzServerControl",
+          "group": "navigation",
+          "title": "Restart All"
+        },
+        {
+          "command": "dayz-mod-tool.stopAll",
+          "when": "view == dayzServerControl",
+          "group": "navigation",
+          "title": "Stop All"
+        },
+        {
+          "command": "dayz-mod-tool.openSettings",
+          "when": "view == dayzServerControl",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "dayz-mod-tool.buildMod",
-          "when": "view == dayzModList && viewItem == modItem",
+          "when": "view == dayzServerControl && viewItem =~ /modItemDev/",
+          "group": "inline"
+        },
+        {
+          "command": "dayz-mod-tool.refreshMods",
+          "when": "view == dayzServerControl && viewItem == groupSourceAddons",
+          "group": "inline"
+        },
+        {
+          "command": "dayz-mod-tool.buildPending",
+          "when": "view == dayzServerControl && viewItem == groupSourceAddons",
+          "group": "inline"
+        },
+        {
+          "command": "dayz-mod-tool.buildAll",
+          "when": "view == dayzServerControl && viewItem == groupSourceAddons",
           "group": "inline"
         }
       ]

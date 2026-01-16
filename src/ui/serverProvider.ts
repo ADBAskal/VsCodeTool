@@ -1,0 +1,231 @@
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ServerController } from '../serverController';
+import { ConfigManager } from '../configManager';
+import { WorkshopScanner } from '../workshopScanner';
+import { ModScanner } from '../modScanner';
+
+export class ServerStatusItem extends vscode.TreeItem {
+    constructor(public isRunning: boolean) {
+        super(`Server: ${isRunning ? 'Running' : 'Stopped'}`);
+        this.iconPath = new vscode.ThemeIcon(isRunning ? 'pass' : 'circle-slash');
+        this.contextValue = 'serverStatus';
+        this.command = {
+            command: 'dayz-mod-tool.openSettings',
+            title: 'Settings'
+        };
+    }
+}
+
+export class ClientLauncherItem extends vscode.TreeItem {
+    constructor() {
+        super("Launch DayZ Client");
+        this.iconPath = new vscode.ThemeIcon('run');
+        this.contextValue = 'clientLauncher';
+        this.command = {
+            command: 'dayz-mod-tool.startClient',
+            title: 'Start Client'
+        };
+    }
+}
+
+// Items for new Actions
+class SimpleCommandItem extends vscode.TreeItem {
+    constructor(label: string, commandId: string, icon: string) {
+        super(label);
+        this.command = { command: commandId, title: label };
+        this.iconPath = new vscode.ThemeIcon(icon);
+        this.contextValue = 'commandItem';
+    }
+}
+
+export class GroupItem extends vscode.TreeItem {
+    constructor(label: string, public type: 'dev' | 'workshop' | 'server' | 'client' | 'auto') {
+        super(label, vscode.TreeItemCollapsibleState.Expanded);
+        // Add specific context for dev group to allow inline actions (like Refresh)
+        if (type === 'dev') {
+            this.contextValue = 'groupSourceAddons';
+        } else {
+            this.contextValue = 'group';
+        }
+    }
+}
+
+export class ModItem extends vscode.TreeItem {
+    constructor(
+        public name: string,
+        public path: string,
+        public isEnabled: boolean,
+        public source: 'dev' | 'workshop',
+        public needsBuild: boolean = false,
+        public status: 'ok' | 'modified' | 'pending' = 'ok'
+    ) {
+        super(name);
+
+        // Checkboxes only for Workshop mods (Server Control)
+        if (source === 'workshop') {
+            this.checkboxState = isEnabled ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
+        }
+
+        this.tooltip = path;
+        this.contextValue = source === 'dev' ? 'modItemDev' : 'modItemWorkshop';
+
+        if (source === 'dev') {
+            // "Source Addons" Status Logic
+            if (status === 'modified') {
+                this.description = "(Modified)";
+                // Orange
+                this.iconPath = new vscode.ThemeIcon('diff-modified', new vscode.ThemeColor('charts.orange'));
+                this.contextValue = 'modItemDev:dirty';
+            } else if (status === 'pending') {
+                this.description = "(Pending PBO)";
+                // Gray/White - 'circle-outline' or 'question'
+                this.iconPath = new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('disabledForeground'));
+                this.contextValue = 'modItemDev:pending';
+            } else {
+                this.description = "(OK)";
+                // Green - 'pass' or 'check'
+                this.iconPath = new vscode.ThemeIcon('pass', new vscode.ThemeColor('charts.green'));
+                this.contextValue = 'modItemDev:ok';
+            }
+        } else {
+            this.iconPath = new vscode.ThemeIcon('cloud');
+        }
+    }
+}
+
+type ServerViewElement = ServerStatusItem | ClientLauncherItem | GroupItem | ModItem | SimpleCommandItem;
+
+export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement> {
+    private _onDidChangeTreeData: vscode.EventEmitter<ServerViewElement | undefined | null | void> = new vscode.EventEmitter<ServerViewElement | undefined | null | void>();
+    readonly onDidChangeTreeData: vscode.Event<ServerViewElement | undefined | null | void> = this._onDidChangeTreeData.event;
+
+    private workshopScanner: WorkshopScanner;
+    private modScanner: ModScanner;
+
+    constructor(
+        private serverController: ServerController,
+        private configManager: ConfigManager,
+        private outputChannel: vscode.OutputChannel
+    ) {
+        this.workshopScanner = new WorkshopScanner(outputChannel);
+        this.modScanner = new ModScanner(outputChannel, configManager);
+        // Auto-refresh removed as per user request
+    }
+
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
+    }
+
+    getTreeItem(element: ServerViewElement): vscode.TreeItem {
+        return element;
+    }
+
+    async getChildren(element?: ServerViewElement): Promise<ServerViewElement[]> {
+        if (!element) {
+            return [
+                new GroupItem("Auto Mode", 'auto'),
+                new GroupItem("Server Control", 'server'),
+                new GroupItem("Client Control", 'client'),
+                new GroupItem("Source Addons", 'dev'), // Renamed from Workspace Mods
+                new GroupItem("Workshop Mods", 'workshop')
+            ];
+        }
+
+        if (element instanceof GroupItem) {
+            const config = this.configManager.getConfig();
+
+            if (element.type === 'auto') {
+                return [new SimpleCommandItem("Launch Full Environment", "dayz-mod-tool.startAutoMode", "rocket")];
+            }
+
+            if (element.type === 'server') {
+                const isRunning = this.serverController.isRunning();
+                // Server Status + Controls
+                return [
+                    new ServerStatusItem(isRunning),
+                    new SimpleCommandItem("Start Server", "dayz-mod-tool.startServer", "play"),
+                    new SimpleCommandItem("Restart Server", "dayz-mod-tool.restartServer", "debug-restart"),
+                    new SimpleCommandItem("Stop Server", "dayz-mod-tool.stopServer", "stop")
+                ];
+            }
+
+            if (element.type === 'client') {
+                return [
+                    new SimpleCommandItem("Start Client", "dayz-mod-tool.startClient", "run"),
+                    new SimpleCommandItem("Restart Client", "dayz-mod-tool.restartClient", "debug-restart"),
+                    new SimpleCommandItem("Kill Client", "dayz-mod-tool.killClient", "close")
+                ];
+            }
+
+            if (element.type === 'dev') {
+                const scanCandidates = await this.modScanner.scanWorkspace();
+                const mods: ModItem[] = [];
+
+                for (const candidate of scanCandidates) {
+                    // Logic for enabling/detecting symlink is preserved but checkbox is hidden in UI
+                    const possibleSymlinkName = candidate.name.startsWith('@') ? candidate.name : '@' + candidate.name;
+                    const fullSymlinkPath = path.join(config.dayzServerPath, possibleSymlinkName);
+
+                    const isEnabled = fs.existsSync(fullSymlinkPath);
+                    mods.push(new ModItem(
+                        candidate.name,
+                        candidate.path,
+                        isEnabled,
+                        'dev',
+                        candidate.needsBuild,
+                        candidate.status // Pass status
+                    ));
+                }
+                return mods;
+            }
+
+            if (element.type === 'workshop') {
+                const wMods = await this.workshopScanner.scan(config.workshopPath);
+                return wMods.map(m => {
+                    const safeName = m.name.replace(/[<>:"/\\|?*]/g, '_');
+                    const symlinkPath = path.join(config.dayzServerPath, `@${safeName}`);
+                    const isEnabled = fs.existsSync(symlinkPath);
+                    return new ModItem(m.name, m.path, isEnabled, 'workshop');
+                }).sort((a, b) => a.name.localeCompare(b.name));
+            }
+        }
+
+        return [];
+    }
+
+    public async toggleMod(item: ModItem, enable: boolean) {
+        const config = this.configManager.getConfig();
+        const serverDir = config.dayzServerPath;
+        let symlinkName = "";
+
+        if (item.source === 'workshop') {
+            const safeName = item.name.replace(/[<>:"/\\|?*]/g, '_');
+            symlinkName = `@${safeName}`;
+        } else {
+            symlinkName = item.name;
+        }
+
+        const symlinkPath = path.join(serverDir, symlinkName);
+
+        if (enable) {
+            if (!fs.existsSync(symlinkPath)) {
+                try {
+                    await fs.promises.symlink(item.path, symlinkPath, 'junction');
+                } catch (e: any) {
+                    vscode.window.showErrorMessage(`Failed to link mod: ${e.message}`);
+                }
+            }
+        } else {
+            if (fs.existsSync(symlinkPath)) {
+                try {
+                    await fs.promises.unlink(symlinkPath);
+                } catch (e) {
+                    try { await fs.promises.rm(symlinkPath, { recursive: true, force: true }); } catch (e2) { }
+                }
+            }
+        }
+        this.refresh();
+    }
+}
