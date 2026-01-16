@@ -5,6 +5,7 @@ import { ServerController } from '../serverController';
 import { ConfigManager } from '../configManager';
 import { WorkshopScanner } from '../workshopScanner';
 import { ModScanner } from '../modScanner';
+import { LocalModScanner } from '../localModScanner';
 
 export class ServerStatusItem extends vscode.TreeItem {
     constructor(public isRunning: boolean) {
@@ -41,7 +42,7 @@ class SimpleCommandItem extends vscode.TreeItem {
 }
 
 export class GroupItem extends vscode.TreeItem {
-    constructor(label: string, public type: 'dev' | 'workshop' | 'server' | 'client' | 'auto') {
+    constructor(label: string, public type: 'dev' | 'workshop' | 'local' | 'server' | 'client' | 'auto') {
         super(label, vscode.TreeItemCollapsibleState.Expanded);
         // Add specific context for dev group to allow inline actions (like Refresh)
         if (type === 'dev') {
@@ -57,19 +58,19 @@ export class ModItem extends vscode.TreeItem {
         public name: string,
         public path: string,
         public isEnabled: boolean,
-        public source: 'dev' | 'workshop',
+        public source: 'dev' | 'workshop' | 'local',
         public needsBuild: boolean = false,
         public status: 'ok' | 'modified' | 'pending' = 'ok'
     ) {
         super(name);
 
-        // Checkboxes only for Workshop mods (Server Control)
-        if (source === 'workshop') {
+        // Checkboxes only for Workshop and Local mods (Server Control)
+        if (source === 'workshop' || source === 'local') {
             this.checkboxState = isEnabled ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
         }
 
         this.tooltip = path;
-        this.contextValue = source === 'dev' ? 'modItemDev' : 'modItemWorkshop';
+        this.contextValue = source === 'dev' ? 'modItemDev' : 'modItemWorkshop'; // 'local' uses modItemWorkshop context (checkbox support)
 
         if (source === 'dev') {
             // "Source Addons" Status Logic
@@ -89,6 +90,8 @@ export class ModItem extends vscode.TreeItem {
                 this.iconPath = new vscode.ThemeIcon('pass', new vscode.ThemeColor('charts.green'));
                 this.contextValue = 'modItemDev:ok';
             }
+        } else if (source === 'local') {
+            this.iconPath = new vscode.ThemeIcon('folder-active');
         } else {
             this.iconPath = new vscode.ThemeIcon('cloud');
         }
@@ -103,6 +106,7 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
 
     private workshopScanner: WorkshopScanner;
     private modScanner: ModScanner;
+    private localModScanner: LocalModScanner;
 
     constructor(
         private serverController: ServerController,
@@ -111,6 +115,7 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
     ) {
         this.workshopScanner = new WorkshopScanner(outputChannel);
         this.modScanner = new ModScanner(outputChannel, configManager);
+        this.localModScanner = new LocalModScanner(outputChannel);
         // Auto-refresh removed as per user request
     }
 
@@ -129,6 +134,7 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
                 new GroupItem("Server Control", 'server'),
                 new GroupItem("Client Control", 'client'),
                 new GroupItem("Source Addons", 'dev'), // Renamed from Workspace Mods
+                new GroupItem("Local Builds (@Mods)", 'local'),
                 new GroupItem("Workshop Mods", 'workshop')
             ];
         }
@@ -181,6 +187,19 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
                 return mods;
             }
 
+            if (element.type === 'local') {
+                const outputPath = config.outputPath || "P:\\";
+                // We should ensure we are scanning the right place. 
+                // LocalModScanner defaults to treating path as-is.
+                const localMods = await this.localModScanner.scan(outputPath);
+
+                return localMods.map(m => {
+                    const symlinkPath = path.join(config.dayzServerPath, m.name);
+                    const isEnabled = fs.existsSync(symlinkPath);
+                    return new ModItem(m.name, m.path, isEnabled, 'local');
+                }).sort((a, b) => a.name.localeCompare(b.name));
+            }
+
             if (element.type === 'workshop') {
                 const wMods = await this.workshopScanner.scan(config.workshopPath);
                 return wMods.map(m => {
@@ -200,9 +219,11 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
         const serverDir = config.dayzServerPath;
         let symlinkName = "";
 
-        if (item.source === 'workshop') {
+        if (item.source === 'workshop' || item.source === 'local') {
+            // For workshop/local, we use the folder name as the symlink target name
+            // For local, name is already @ModName. For workshop it might be generic, sanitization handled below
             const safeName = item.name.replace(/[<>:"/\\|?*]/g, '_');
-            symlinkName = `@${safeName}`;
+            symlinkName = item.name.startsWith('@') ? safeName : `@${safeName}`;
         } else {
             symlinkName = item.name;
         }

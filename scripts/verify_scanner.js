@@ -1,27 +1,30 @@
 // Standalone script to verify mod scanning logic
-// Run with: node scripts/verify_scanner.js
+// Run with: node scripts/verify_scanner.js [path1] [path2] ...
+// If no arguments provided, scans current working directory.
 
 const fs = require('fs');
 const path = require('path');
 
 async function scanFolder(folderPath) {
-    console.log(`Scanning: ${folderPath}`);
+    const absPath = path.resolve(folderPath);
+    console.log(`\nScanning: ${absPath}`);
 
     // Safety checks
-    if (!fs.existsSync(folderPath)) {
-        console.log(`Path does not exist: ${folderPath}`);
+    if (!fs.existsSync(absPath)) {
+        console.log(`[ERROR] Path does not exist: ${absPath}`);
         return;
     }
 
-    if (folderPath.includes('node_modules') || folderPath.includes('.git') || folderPath.endsWith('.gemini')) {
+    // Skip ignored folders
+    if (absPath.includes('node_modules') || absPath.includes('.git') || absPath.endsWith('.gemini')) {
         return;
     }
 
     let entries;
     try {
-        entries = await fs.promises.readdir(folderPath);
+        entries = await fs.promises.readdir(absPath);
     } catch (err) {
-        console.error(`Failed to read dir: ${folderPath}`, err);
+        console.error(`[ERROR] Failed to read dir: ${absPath}`, err);
         return;
     }
 
@@ -29,17 +32,16 @@ async function scanFolder(folderPath) {
     const hasConfig = entries.some(e => e.toLowerCase() === 'config.cpp');
 
     if (hasConfig) {
-        console.log(`[SUCCESS] Found Mod Candidate: ${folderPath}`);
-        // In the real app, we stop recursion here usually, or continue if we expect nested mods.
-        // mimicking current implementation:
+        console.log(`[SUCCESS] Found Mod Candidate: ${absPath}`);
+        // In the real app, we stop recursion here usually.
     }
 
     for (const entry of entries) {
-        const fullPath = path.join(folderPath, entry);
+        const fullPath = path.join(absPath, entry);
         let stat;
         try {
             stat = await fs.promises.stat(fullPath);
-        } catch { continue; }
+        } catch (e) { continue; }
 
         if (stat.isDirectory()) {
             await scanFolder(fullPath);
@@ -48,12 +50,10 @@ async function scanFolder(folderPath) {
 }
 
 async function main() {
-    // Hardcoded paths based on user's workspace
-    const pathsToTest = [
-        'd:\\Tools\\VsCodeTool',
-        'P:\\askal', // Added based on earlier context/screenshot
-        'D:\\Tools'
-    ];
+    const args = process.argv.slice(2);
+    const pathsToTest = args.length > 0 ? args : [process.cwd()];
+
+    console.log(`Starting Scan Tool... Targets: ${pathsToTest.length}`);
 
     for (const p of pathsToTest) {
         console.log(`--- Testing Root: ${p} ---`);

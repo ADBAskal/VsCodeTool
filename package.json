@@ -2,7 +2,8 @@
   "name": "dayz-mod-tool",
   "displayName": "DayZ Mod Tools for PboProject",
   "description": "Automated PBO generation and mod management for DayZ via VS Code",
-  "version": "0.0.41",
+  "version": "0.0.45",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -142,7 +143,7 @@
         {
           "id": "dayz-mod-explorer",
           "title": "DayZ Mods",
-          "icon": "$(archive)"
+          "icon": "media/icon.svg"
         }
       ]
     },
@@ -151,7 +152,7 @@
         {
           "id": "dayzServerControl",
           "name": "DayZ Control Center",
-          "icon": "$(layout-sidebar-left)"
+          "icon": "media/icon.png"
         }
       ]
     },

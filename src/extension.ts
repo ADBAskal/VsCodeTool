@@ -20,14 +20,6 @@ export function activate(context: vscode.ExtensionContext) {
     const serverController = new ServerController(configManager, outputChannel);
     const serverProvider = new ServerProvider(serverController, configManager, outputChannel);
 
-    // Register Mod List (Workspace Mods) - Single Selection (No Checkboxes)
-    /*
-    const modTreeView = vscode.window.createTreeView('askalModList', {
-        treeDataProvider: modProvider,
-        canSelectMany: false
-    });
-    */
-
     // Register Server Tree View with Checkbox support
     const serverTreeView = vscode.window.createTreeView('dayzServerControl', {
         treeDataProvider: serverProvider,
