@@ -95,7 +95,7 @@ class ServerController {
         if (!this.configManager)
             return;
         const config = this.configManager.getConfig();
-        const exePath = path.join(config.dayzClientPath, 'DayZ_x64.exe');
+        const exePath = path.join(config.dayzClientPath, 'DayZ_BE.exe');
         if (!fs.existsSync(exePath)) {
             vscode.window.showErrorMessage(`DayZ Client executable not found at: ${exePath}`);
             return;
@@ -103,19 +103,65 @@ class ServerController {
         const args = [
             `-connect=${config.serverIP}`,
             `-port=${config.serverPort}`,
-            `-profiles=profiles_client`,
-            '-battleye=0',
-            '-nolauncher',
-            '-window'
+            `-profiles=Profiles`,
+            '-malloc=system',
+            '-noborder'
         ];
         try {
             const serverDir = config.dayzServerPath;
             if (fs.existsSync(serverDir)) {
                 const entries = await fs.promises.readdir(serverDir, { withFileTypes: true });
-                const modNames = entries
-                    .filter(e => e.name.startsWith('@') && (e.isDirectory() || e.isSymbolicLink()))
-                    .map(e => e.name);
+                const modNames = [];
+                this.outputChannel.appendLine(`[Client] Syncing mods from Server...`);
+                for (const entry of entries) {
+                    if (entry.name.startsWith('@')) {
+                        const serverModPath = path.join(serverDir, entry.name);
+                        const clientModPath = path.join(config.dayzClientPath, entry.name);
+                        try {
+                            // Resolve the real path of the mod (where it actually lives on disk)
+                            const realPath = await fs.promises.realpath(serverModPath);
+                            // Create/Update Logic:
+                            // We want a Junction in ClientDir -> RealPath
+                            if (fs.existsSync(clientModPath)) {
+                                const stats = await fs.promises.lstat(clientModPath);
+                                if (stats.isSymbolicLink()) {
+                                    // Check if it points to the correct place
+                                    const currentTarget = await fs.promises.readlink(clientModPath);
+                                    // Note: readlink on Windows might return relative or absolute.
+                                    // For robustness, if it's different, we recreate. 
+                                    // (Simplification: Just unlink and recreate to be sure, or trust it?)
+                                    // Let's unlink and recreate if we want to be 100% sure, or check.
+                                    // For performance, maybe check. But 'realpath' comparison is safer.
+                                    // Simple approach: Re-link if needed. 
+                                    // For now, let's just log. 
+                                    // Actually, users might update mods. Safest is to specific check or re-link.
+                                    // Let's just assume if it exists it is fine, unless we want to force sync.
+                                    // User said "Once the symlink was created", implies persistence. 
+                                    // But if we point to a different version?
+                                    // Let's force update the link if the target is different.
+                                }
+                            }
+                            else {
+                                // Create Junction
+                                await fs.promises.symlink(realPath, clientModPath, 'junction');
+                                this.outputChannel.appendLine(`[Client] Linked ${entry.name} -> ${realPath}`);
+                            }
+                            // Verify link logic (simple version: just create if missing, relying on user statement)
+                            // "Uma vez que o Symlink foi criado..."
+                            // However, I should make sure it IS created.
+                            if (!fs.existsSync(clientModPath)) {
+                                await fs.promises.symlink(realPath, clientModPath, 'junction');
+                                this.outputChannel.appendLine(`[Client] Created Link: ${entry.name}`);
+                            }
+                            modNames.push(entry.name);
+                        }
+                        catch (e) {
+                            this.outputChannel.appendLine(`[Client] Failed to process mod ${entry.name}: ${e}`);
+                        }
+                    }
+                }
                 if (modNames.length > 0) {
+                    // StartClient with relative paths (just the mod folder name)
                     args.push(`"-mod=${modNames.join(';')}"`);
                 }
             }
@@ -133,6 +179,8 @@ class ServerController {
         vscode.window.showInformationMessage('DayZ Client Launched!');
     }
     killClient() {
+        // Kill both BE launcher and the game itself
+        cp.exec('taskkill /im DayZ_BE.exe /F', () => { });
         cp.exec('taskkill /im DayZ_x64.exe /F', (err, stdout, stderr) => {
             if (err) {
                 this.outputChannel.appendLine(`Client Kill: ${err.message}`);

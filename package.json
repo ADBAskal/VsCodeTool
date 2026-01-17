@@ -1,9 +1,22 @@
 {
   "name": "dayz-mod-tool",
-  "displayName": "DayZ Mod Tools for PboProject",
+  "displayName": "DayZ Mod Tools",
   "description": "Automated PBO generation and mod management for DayZ via VS Code",
-  "version": "0.0.45",
-  "icon": "media/icon.png",
+  "publisher": "askal",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ADBAskal/VsCodeTool"
+  },
+  "version": "0.0.50",
+  "keywords": [
+    "dayz",
+    "mikero",
+    "pbo",
+    "moding",
+    "arma"
+  ],
+  "icon": "media/askal_icon.png",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -142,7 +155,7 @@
       "activitybar": [
         {
           "id": "dayz-mod-explorer",
-          "title": "DayZ Mods",
+          "title": "Askal Tools",
           "icon": "media/icon.svg"
         }
       ]
@@ -151,7 +164,7 @@
       "dayz-mod-explorer": [
         {
           "id": "dayzServerControl",
-          "name": "DayZ Control Center",
+          "name": "Askal Control Center",
           "icon": "media/icon.png"
         }
       ]

@@ -216,7 +216,11 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
 
     public async toggleMod(item: ModItem, enable: boolean) {
         const config = this.configManager.getConfig();
-        const serverDir = config.dayzServerPath;
+        const directories = [config.dayzServerPath];
+        if (config.dayzClientPath && fs.existsSync(config.dayzClientPath)) {
+            directories.push(config.dayzClientPath);
+        }
+
         let symlinkName = "";
 
         if (item.source === 'workshop' || item.source === 'local') {
@@ -228,22 +232,24 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
             symlinkName = item.name;
         }
 
-        const symlinkPath = path.join(serverDir, symlinkName);
+        for (const dir of directories) {
+            const symlinkPath = path.join(dir, symlinkName);
 
-        if (enable) {
-            if (!fs.existsSync(symlinkPath)) {
-                try {
-                    await fs.promises.symlink(item.path, symlinkPath, 'junction');
-                } catch (e: any) {
-                    vscode.window.showErrorMessage(`Failed to link mod: ${e.message}`);
+            if (enable) {
+                if (!fs.existsSync(symlinkPath)) {
+                    try {
+                        await fs.promises.symlink(item.path, symlinkPath, 'junction');
+                    } catch (e: any) {
+                        vscode.window.showErrorMessage(`Failed to link mod in ${dir}: ${e.message}`);
+                    }
                 }
-            }
-        } else {
-            if (fs.existsSync(symlinkPath)) {
-                try {
-                    await fs.promises.unlink(symlinkPath);
-                } catch (e) {
-                    try { await fs.promises.rm(symlinkPath, { recursive: true, force: true }); } catch (e2) { }
+            } else {
+                if (fs.existsSync(symlinkPath)) {
+                    try {
+                        await fs.promises.unlink(symlinkPath);
+                    } catch (e) {
+                        try { await fs.promises.rm(symlinkPath, { recursive: true, force: true }); } catch (e2) { }
+                    }
                 }
             }
         }
