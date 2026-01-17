@@ -1,0 +1,28 @@
+name: Publish Extension
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers when a tag starting with 'v' is pushed (e.g. v0.0.52)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      # Optional: Run Tests
+      # - name: Run Tests
+      #   run: npm test
+
+      - name: Publish to Marketplace
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
