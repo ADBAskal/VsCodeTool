@@ -23,8 +23,7 @@ jobs:
 
       # Optional: Run Tests
       # - name: Run Tests
-      #
-      #   run: npm test
+      # - run: npm test
 
       - name: Publish to Marketplace
         run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
