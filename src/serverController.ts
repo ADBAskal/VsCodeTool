@@ -108,7 +108,7 @@ export class ServerController {
         setTimeout(() => this.start(), 2000);
     }
 
-    public async startClient() {
+    public async startClient(autoConnect: boolean = false) {
         if (!this.configManager) return;
         const config = this.configManager.getConfig();
         const exePath = path.join(config.dayzClientPath, 'DayZ_BE.exe');
@@ -119,12 +119,17 @@ export class ServerController {
         }
 
         const args = [
-            `-connect=${config.serverIP}`,
-            `-port=${config.serverPort}`,
             `-profiles=Profiles`,
+            `-name=Askal`,
             '-malloc=system',
-            '-noborder'
+            '-noborder',
+            '-noPause=1'
         ];
+
+        if (autoConnect) {
+            args.push(`-connect=${config.serverIP}`);
+            args.push(`-port=${config.serverPort}`);
+        }
 
         try {
             const serverDir = config.dayzServerPath;
@@ -187,7 +192,7 @@ export class ServerController {
 
                 if (modNames.length > 0) {
                     // StartClient with relative paths (just the mod folder name)
-                    args.push(`"-mod=${modNames.join(';')}"`);
+                    args.push(`-mod=${modNames.join(';')}`);
                 }
             }
         } catch (e) {
@@ -242,7 +247,7 @@ export class ServerController {
             return new Promise<void>(resolve => {
                 setTimeout(() => {
                     clearInterval(interval);
-                    this.startClient();
+                    this.startClient(true);
                     resolve();
                 }, delay);
             });

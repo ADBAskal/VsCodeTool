@@ -91,7 +91,7 @@ class ServerController {
         this.stop();
         setTimeout(() => this.start(), 2000);
     }
-    async startClient() {
+    async startClient(autoConnect = false) {
         if (!this.configManager)
             return;
         const config = this.configManager.getConfig();
@@ -101,12 +101,16 @@ class ServerController {
             return;
         }
         const args = [
-            `-connect=${config.serverIP}`,
-            `-port=${config.serverPort}`,
             `-profiles=Profiles`,
+            `-name=Askal`,
             '-malloc=system',
-            '-noborder'
+            '-noborder',
+            '-noPause=1'
         ];
+        if (autoConnect) {
+            args.push(`-connect=${config.serverIP}`);
+            args.push(`-port=${config.serverPort}`);
+        }
         try {
             const serverDir = config.dayzServerPath;
             if (fs.existsSync(serverDir)) {
@@ -162,7 +166,7 @@ class ServerController {
                 }
                 if (modNames.length > 0) {
                     // StartClient with relative paths (just the mod folder name)
-                    args.push(`"-mod=${modNames.join(';')}"`);
+                    args.push(`-mod=${modNames.join(';')}`);
                 }
             }
         }
@@ -211,7 +215,7 @@ class ServerController {
             return new Promise(resolve => {
                 setTimeout(() => {
                     clearInterval(interval);
-                    this.startClient();
+                    this.startClient(true);
                     resolve();
                 }, delay);
             });
