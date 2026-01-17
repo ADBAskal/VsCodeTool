@@ -8,8 +8,7 @@
   
   **A Suite definitiva para Desenvolvimento e Testes no DayZ Standalone.**
 
-  [![Version](https://vsmarketplacebadge.apphb.com/version/askal.dayz-mod-tool.svg)](https://marketplace.visualstudio.com/items?itemName=askal.dayz-mod-tool)
-  [![Installs](https://vsmarketplacebadge.apphb.com/installs/askal.dayz-mod-tool.svg)](https://marketplace.visualstudio.com/items?itemName=askal.dayz-mod-tool)
+
 </div>
 
 ---
