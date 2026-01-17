@@ -1,44 +1,85 @@
-# DayZ Mod Tool - VS Code Extension
 
-This extension integrates Mikero's PboProject into VS Code, allowing you to build DayZ mods directly from your workspace.
+<div align="center">
+  <a href="https://ibb.co/VYpGvg3J">
+    <img src="https://i.ibb.co/PGzy5ctF/Askal-Horiz.png" alt="Askal DayZ Tools" width="100%">
+  </a>
 
-## Setup Instructions
+  # Askal DayZ Mod Tools
+  
+  **A Suite definitiva para Desenvolvimento e Testes no DayZ Standalone.**
 
-1.  **Prerequisites**:
-    *   Node.js and npm installed.
-    *   Mikero Tools installed (specifically `pboProject`).
-    *   VS Code.
+  [![Version](https://vsmarketplacebadge.apphb.com/version/askal.dayz-mod-tool.svg)](https://marketplace.visualstudio.com/items?itemName=askal.dayz-mod-tool)
+  [![Installs](https://vsmarketplacebadge.apphb.com/installs/askal.dayz-mod-tool.svg)](https://marketplace.visualstudio.com/items?itemName=askal.dayz-mod-tool)
+</div>
 
-2.  **Installation**:
-    Open this folder in VS Code.
-    Open a terminal and run:
-    ```bash
-    npm install
-    ```
+---
 
-3.  **Running the Extension**:
-    *   Press `F5` to open a new "Extension Development Host" window.
-    *   In the new window, open your DayZ Mod workspace (e.g., `P:\MyMod`).
+## 🚀 Sobre a Extensão
 
-## Features
+A **Askal DayZ Mod Tools** foi desenvolvida para agilizar o fluxo de trabalho dos modders de DayZ. Esqueça scripts BAT complexos ou ferramentas externas manuais. Tudo o que você precisa está agora integrado diretamente no seu VS Code.
 
-*   **Auto-Detection**: Scans your workspace for folders containing `config.cpp`.
-*   **Mod Explorer**: Displays detected mods in the "DayZ Mods" activity bar icon.
-*   **One-Click Build**: Click the "Build" icon (or right-click) on a mod to run PboProject.
-*   **Configuration**: 
-    *   Go to `File > Preferences > Settings`.
-    *   Search for `DayZ Tool`.
-    *   Configure `Source Path`, `Output Path`, `Key Path`, etc.
+Desde a compactação de PBOs (usando Mikero Tools) até o lançamento de um ambiente completo de teste (Servidor + Cliente com Mods), tudo é feito com um clique.
 
-## Configuration Details
+## ✨ Funcionalidades Principais
 
-The extension tries to detect `pboProject.exe` from the Windows Registry automatically.
-You can configure:
-*   `dayzTool.sourcePath`: Defaults to `P:/`.
-*   `dayzTool.keyPath`: Path to your private key for signing.
-*   `dayzTool.outputPath`: (Optional) Custom output directory.
+### 🛠️ Compilação Automática (PBO)
+*   Integração nativa com **Mikero's PboProject**.
+*   Detecção automática de mods no seu Workspace (baseado em `config.cpp`).
+*   **One-Click Build**: Compile apenas o mod que você alterou.
 
-## Troubleshooting
+### 🎮 Gerenciamento de Ambiente
+*   **Server Controller**: Inicie, pare e reinicie seu DayZ Server local.
+*   **Client Launcher**: Lance o jogo já conectado ao seu servidor local.
+*   **Auto Link (Novo!)**: Criação automática de **Symlinks** (Junctions) na pasta do cliente, permitindo carregar mods locais sem copiar arquivos.
 
-*   If `npm install` fails, verify Node.js is in your PATH.
-*   If "Build" fails, check the "DayZ PboProject" output channel for logs.
+### ⚡ Modo Automático (Rocket Launch)
+*   Um único botão para:
+    1.  Iniciar o Servidor.
+    2.  Aguardar o carregamento.
+    3.  Lançar o Cliente e conectar automaticamente (`-connect=127.0.0.1`).
+
+---
+
+## 📚 Guia de Uso (Wiki)
+
+### 1. Pré-Requisitos
+Para que a mágica aconteça, você precisa ter instalado:
+*   [Mikero Tools](https://mikero.bytex.digital/Downloads) (PboProject deve estar funcional).
+*   Seu ambiente de trabalho configurado no drive `P:\` (padrão do DayZ Tools).
+
+### 2. Configuração Inicial
+Após instalar a extensão, vá em `File > Preferences > Settings` e busque por `DayZ Tool`.
+Configure os caminhos essenciais:
+
+| Configuração | Descrição | Padrão |
+| :--- | :--- | :--- |
+| `Source Path` | Onde seus mods estão (Drive de Trabalho). | `P:/` |
+| `Output Path` | Para onde os PBOs prontos vão. Deixe vazio para usar o padrão do Mikero. | *(Vazio)* |
+| `DayZ Server Path` | Caminho da pasta do seu DayZServer. | `C:\...\DayZServer` |
+| `DayZ Client Path` | Caminho da pasta do seu jogo DayZ. | `C:\...\DayZ` |
+
+### 3. Painel de Controle "Askal Tools"
+No menu lateral do VS Code, clique no ícone do **Askal (Unicórnio)**.
+
+*   **Build Mod**: Clique no ícone de martelo `Build` ao lado do nome do mod.
+*   **Play**: Inicia o servidor.
+*   **Rocket**: Inicia o "Full Environment" (Server + Client).
+
+---
+
+## ⚙️ Parâmetros de Lançamento
+A extensão utiliza parâmetros otimizados para desenvolvimento:
+
+*   **Servidor**: `-config=serverDZ.cfg -profiles=profiles -mod=@SeusMods`
+*   **Cliente**: `-malloc=system -noborder -noPause=1 -name=Askal`
+
+> **Nota**: No modo "Rocket", o cliente recebe automaticamente `-connect` e `-port` para entrar direto no servidor.
+
+---
+
+## 🤝 Contribuição e Suporte
+
+Encontrou um bug? Tem uma ideia?
+O projeto é mantido pela comunidade **Askal**. Entre em contato ou abra uma issue no repositório.
+
+**Desenvolvido com ❤️ por ADBAskal.**
