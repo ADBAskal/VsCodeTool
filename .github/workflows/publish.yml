@@ -3,7 +3,8 @@ name: Publish Extension
 on:
   push:
     tags:
-      - 'v*' # Triggers when a tag starting with 'v' is pushed (e.g. v0.0.52)
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
