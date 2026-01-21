@@ -124,6 +124,14 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('dayz-mod-tool.openSettings', () => {
             vscode.commands.executeCommand('workbench.action.openSettings', 'dayzTool');
+        }),
+        vscode.commands.registerCommand('dayz-mod-tool.selectServerConfig', async (configItem: any) => {
+            if (configItem && configItem.name) {
+                // Update the setting
+                await vscode.workspace.getConfiguration('dayzTool').update('serverConfigFile', configItem.name, vscode.ConfigurationTarget.Workspace);
+                serverProvider.refresh();
+                vscode.window.showInformationMessage(`Server Config Selected: ${configItem.name}`);
+            }
         })
     );
 

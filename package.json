@@ -99,6 +99,11 @@
         "command": "dayz-mod-tool.buildAll",
         "title": "Build All",
         "icon": "$(gear)"
+      },
+      {
+        "command": "dayz-mod-tool.selectServerConfig",
+        "title": "Select Server Config",
+        "icon": "$(check)"
       }
     ],
     "configuration": {
@@ -148,6 +153,16 @@
           "type": "string",
           "default": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\221100",
           "description": "Path to DayZ Workshop folder (usually .../steamapps/workshop/content/221100)."
+        },
+        "dayzTool.clientName": {
+          "type": "string",
+          "default": "Askal",
+          "description": "Name to use for the DayZ Client launch parameter (-name=...)."
+        },
+        "dayzTool.serverConfigFile": {
+          "type": "string",
+          "default": "serverDZ.cfg",
+          "description": "The server configuration file to use for launching the server."
         }
       }
     },

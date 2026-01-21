@@ -45,7 +45,12 @@ export class ServerController {
         this.outputChannel.appendLine(`Starting DayZ Server from: ${exePath}`);
 
         const args: string[] = [];
-        if (fs.existsSync(path.join(cwd, 'serverDZ.cfg'))) {
+        if (config.serverConfigFile && config.serverConfigFile.trim() !== "") {
+            // Use configured file, fallback to serverDZ.cfg check if needed or just trust user?
+            // User requested: "List .cfg's found and setting... initialization parameter"
+            // So we assume the config points to the file name.
+            args.push(`-config=${config.serverConfigFile}`);
+        } else if (fs.existsSync(path.join(cwd, 'serverDZ.cfg'))) {
             args.push('-config=serverDZ.cfg');
         }
 
@@ -86,7 +91,7 @@ export class ServerController {
                 vscode.window.showInformationMessage('DayZ Server stopped.');
             });
 
-            vscode.window.showInformationMessage('DayZ Server started!');
+            vscode.window.showInformationMessage(`DayZ Server started! (Config: ${config.serverConfigFile})`);
 
         } catch (e: any) {
             vscode.window.showErrorMessage(`Failed to start server: ${e.message}`);
@@ -118,9 +123,10 @@ export class ServerController {
             return;
         }
 
+        const clientName = config.clientName || "Askal"; // Fallback if empty
         const args = [
             `-profiles=Profiles`,
-            `-name=Askal`,
+            `-name=${clientName}`,
             '-malloc=system',
             '-noborder',
             '-noPause=1'

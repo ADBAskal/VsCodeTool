@@ -13,6 +13,8 @@ export interface DayZToolConfig {
     modFolderNameOverride: string;
     serverIP: string;
     serverPort: number;
+    clientName: string;
+    serverConfigFile: string;
 }
 
 export class ConfigManager {
@@ -36,7 +38,9 @@ export class ConfigManager {
             workshopPath: config.get<string>('workshopPath', 'C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\221100'),
             modFolderNameOverride: config.get<string>('modFolderNameOverride', ''),
             serverIP: config.get<string>('serverIP', '127.0.0.1'),
-            serverPort: config.get<number>('serverPort', 2302)
+            serverPort: config.get<number>('serverPort', 2302),
+            clientName: config.get<string>('clientName', 'Askal'),
+            serverConfigFile: config.get<string>('serverConfigFile', 'serverDZ.cfg')
         };
     }
 

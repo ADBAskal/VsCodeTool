@@ -42,7 +42,7 @@ class SimpleCommandItem extends vscode.TreeItem {
 }
 
 export class GroupItem extends vscode.TreeItem {
-    constructor(label: string, public type: 'dev' | 'workshop' | 'local' | 'server' | 'client' | 'auto') {
+    constructor(label: string, public type: 'dev' | 'workshop' | 'local' | 'server' | 'client' | 'auto' | 'config') {
         super(label, vscode.TreeItemCollapsibleState.Expanded);
         // Add specific context for dev group to allow inline actions (like Refresh)
         if (type === 'dev') {
@@ -50,6 +50,23 @@ export class GroupItem extends vscode.TreeItem {
         } else {
             this.contextValue = 'group';
         }
+    }
+}
+
+export class ConfigItem extends vscode.TreeItem {
+    constructor(
+        public name: string,
+        public isSelected: boolean
+    ) {
+        super(name);
+        this.contextValue = 'configItem';
+        this.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'file-code');
+        this.description = isSelected ? "(Active)" : "";
+        this.command = {
+            command: 'dayz-mod-tool.selectServerConfig',
+            title: 'Select Config',
+            arguments: [this]
+        };
     }
 }
 
@@ -98,7 +115,7 @@ export class ModItem extends vscode.TreeItem {
     }
 }
 
-type ServerViewElement = ServerStatusItem | ClientLauncherItem | GroupItem | ModItem | SimpleCommandItem;
+type ServerViewElement = ServerStatusItem | ClientLauncherItem | GroupItem | ModItem | SimpleCommandItem | ConfigItem;
 
 export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement> {
     private _onDidChangeTreeData: vscode.EventEmitter<ServerViewElement | undefined | null | void> = new vscode.EventEmitter<ServerViewElement | undefined | null | void>();
@@ -132,6 +149,7 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
             return [
                 new GroupItem("Auto Mode", 'auto'),
                 new GroupItem("Server Control", 'server'),
+                new GroupItem("Server Configs", 'config'), // New Group
                 new GroupItem("Client Control", 'client'),
                 new GroupItem("Source Addons", 'dev'), // Renamed from Workspace Mods
                 new GroupItem("Local Builds (@Mods)", 'local'),
@@ -155,6 +173,26 @@ export class ServerProvider implements vscode.TreeDataProvider<ServerViewElement
                     new SimpleCommandItem("Restart Server", "dayz-mod-tool.restartServer", "debug-restart"),
                     new SimpleCommandItem("Stop Server", "dayz-mod-tool.stopServer", "stop")
                 ];
+            }
+
+            if (element.type === 'config') {
+                const serverPath = config.dayzServerPath;
+                if (!serverPath || !fs.existsSync(serverPath)) {
+                    return [new vscode.TreeItem("Server path not found")];
+                }
+
+                try {
+                    const files = await fs.promises.readdir(serverPath);
+                    const cfgFiles = files.filter(f => f.toLowerCase().endsWith('.cfg'));
+                    const currentConfig = config.serverConfigFile.toLowerCase();
+
+                    return cfgFiles.map(f => {
+                        const isSelected = f.toLowerCase() === currentConfig;
+                        return new ConfigItem(f, isSelected);
+                    });
+                } catch (e) {
+                    return [new vscode.TreeItem("Error scanning configs")];
+                }
             }
 
             if (element.type === 'client') {
