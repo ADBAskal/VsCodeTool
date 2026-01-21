@@ -23,7 +23,9 @@ class ConfigManager {
             workshopPath: config.get('workshopPath', 'C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\221100'),
             modFolderNameOverride: config.get('modFolderNameOverride', ''),
             serverIP: config.get('serverIP', '127.0.0.1'),
-            serverPort: config.get('serverPort', 2302)
+            serverPort: config.get('serverPort', 2302),
+            clientName: config.get('clientName', 'Askal'),
+            serverConfigFile: config.get('serverConfigFile', 'serverDZ.cfg')
         };
     }
     async getPboProjectPath() {

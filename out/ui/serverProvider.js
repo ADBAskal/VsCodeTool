@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ServerProvider = exports.ModItem = exports.GroupItem = exports.ClientLauncherItem = exports.ServerStatusItem = void 0;
+exports.ServerProvider = exports.ModItem = exports.ConfigItem = exports.GroupItem = exports.ClientLauncherItem = exports.ServerStatusItem = void 0;
 const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
@@ -55,6 +55,22 @@ class GroupItem extends vscode.TreeItem {
     }
 }
 exports.GroupItem = GroupItem;
+class ConfigItem extends vscode.TreeItem {
+    constructor(name, isSelected) {
+        super(name);
+        this.name = name;
+        this.isSelected = isSelected;
+        this.contextValue = 'configItem';
+        this.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'file-code');
+        this.description = isSelected ? "(Active)" : "";
+        this.command = {
+            command: 'dayz-mod-tool.selectServerConfig',
+            title: 'Select Config',
+            arguments: [this]
+        };
+    }
+}
+exports.ConfigItem = ConfigItem;
 class ModItem extends vscode.TreeItem {
     constructor(name, path, isEnabled, source, needsBuild = false, status = 'ok') {
         super(name);
@@ -123,6 +139,7 @@ class ServerProvider {
             return [
                 new GroupItem("Auto Mode", 'auto'),
                 new GroupItem("Server Control", 'server'),
+                new GroupItem("Server Configs", 'config'), // New Group
                 new GroupItem("Client Control", 'client'),
                 new GroupItem("Source Addons", 'dev'), // Renamed from Workspace Mods
                 new GroupItem("Local Builds (@Mods)", 'local'),
@@ -143,6 +160,24 @@ class ServerProvider {
                     new SimpleCommandItem("Restart Server", "dayz-mod-tool.restartServer", "debug-restart"),
                     new SimpleCommandItem("Stop Server", "dayz-mod-tool.stopServer", "stop")
                 ];
+            }
+            if (element.type === 'config') {
+                const serverPath = config.dayzServerPath;
+                if (!serverPath || !fs.existsSync(serverPath)) {
+                    return [new vscode.TreeItem("Server path not found")];
+                }
+                try {
+                    const files = await fs.promises.readdir(serverPath);
+                    const cfgFiles = files.filter(f => f.toLowerCase().endsWith('.cfg'));
+                    const currentConfig = config.serverConfigFile.toLowerCase();
+                    return cfgFiles.map(f => {
+                        const isSelected = f.toLowerCase() === currentConfig;
+                        return new ConfigItem(f, isSelected);
+                    });
+                }
+                catch (e) {
+                    return [new vscode.TreeItem("Error scanning configs")];
+                }
             }
             if (element.type === 'client') {
                 return [

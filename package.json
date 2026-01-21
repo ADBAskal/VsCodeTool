@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/ADBAskal/VsCodeTool"
   },
-  "version": "0.0.54",
+  "version": "0.0.56",
   "keywords": [
     "dayz",
     "mikero",
@@ -171,7 +171,7 @@
         {
           "id": "dayz-mod-explorer",
           "title": "Askal Tools",
-          "icon": "media/icon.svg"
+          "icon": "media/askal_icon.png"
         }
       ]
     },
